@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "canisters": {
+    "simple_task_manager_backend": {
+      "type": "rust",
+      "package": "simple_task_manager_backend",
+      "candid": "src/simple_task_manager_backend/simple_task_manager_backend.did"
+    }
+  },
+  "output_env_file": ".env"
+}

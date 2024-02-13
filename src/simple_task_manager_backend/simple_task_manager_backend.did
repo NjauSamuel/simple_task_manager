@@ -1,0 +1,15 @@
+type Task = record {
+  id : nat64;
+  status : TaskStatus;
+  title : text;
+  description : text;
+  due_date : opt nat64;
+};
+type TaskStatus = variant { Completed; Pending };
+service : {
+  add_task : (text, text, opt nat64) -> (Task);
+  delete_task : (nat64) -> (opt Task);
+  get_task : (nat64) -> (opt Task) query;
+  list_tasks : () -> (vec Task) query;
+  update_task : (nat64, text, text, opt nat64) -> (opt Task);
+}
