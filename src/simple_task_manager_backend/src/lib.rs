@@ -1,7 +1,7 @@
 use candid::CandidType;
 use serde::{Serialize, Deserialize};
-use ic_cdk::query;
 use ic_cdk::update;
+use ic_cdk::query;
 
 #[derive(CandidType, Clone, Serialize, Deserialize)]
 struct Task {
@@ -75,30 +75,39 @@ impl TaskTracker {
     }
 }
 
-#[update]
+static mut TASK_TRACKER: Option<TaskTracker> = None;
+
+fn get_or_init_task_tracker() -> &'static mut TaskTracker {
+    unsafe {
+        TASK_TRACKER.get_or_insert_with(|| TaskTracker::new())
+    }
+}
+
+#[update(name = "add_task")]
 fn add_task(title: String, description: String, due_date: Option<u64>) -> Task {
-    TaskTracker::new().add_task(title, description, due_date)
+    get_or_init_task_tracker().add_task(title, description, due_date)
 }
 
-#[update]
+#[update(name = "update_task")]
 fn update_task(id: u64, title: String, description: String, due_date: Option<u64>) -> Option<Task> {
-    TaskTracker::new().update_task(id, title, description, due_date)
+    get_or_init_task_tracker().update_task(id, title, description, due_date)
 }
 
-#[update]
+#[update(name = "delete_task")]
 fn delete_task(id: u64) -> Option<Task> {
-    TaskTracker::new().delete_task(id)
+    get_or_init_task_tracker().delete_task(id)
 }
 
-#[query]
+#[query(name = "get_task")]
 fn get_task(id: u64) -> Option<Task> {
-    TaskTracker::new().get_task(id)
+    get_or_init_task_tracker().get_task(id)
 }
 
-#[query]
+#[query(name = "list_tasks")]
 fn list_tasks() -> Vec<Task> {
-    TaskTracker::new().list_tasks()
+    get_or_init_task_tracker().list_tasks()
 }
 
 // need this to generate candid
 ic_cdk::export_candid!();
+
