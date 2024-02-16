@@ -2,6 +2,7 @@ use candid::CandidType;
 use serde::{Serialize, Deserialize};
 use ic_cdk::update;
 use ic_cdk::query;
+use std::collections::HashMap;
 
 #[derive(CandidType, Clone, Serialize, Deserialize)]
 struct Task {
@@ -32,34 +33,59 @@ impl Task {
 
 #[derive(CandidType)]
 struct TaskTracker {
-    tasks: Vec<Task>,
+    tasks: HashMap<u64, Task>,
+    next_id: u64,
 }
 
 impl TaskTracker {
     fn new() -> Self {
-        TaskTracker { tasks: Vec::new() }
+        TaskTracker {
+            tasks: HashMap::new(),
+            next_id: 1,
+        }
     }
 
     fn add_task(&mut self, title: String, description: String, due_date: Option<u64>) -> Task {
+        if title.is_empty() {
+            return Err(Error::ValidationError("Title cannot be empty".to_string()));
+        }
+        if description.is_empty() {
+            return Err(Error::ValidationError("Description cannot be empty".to_string()));
+        }
+        if due_date.is_empty() {
+            return Err(Error::ValidationError("Due date cannot be empty".to_string()));
+        }
+        
         let id = self.tasks.len() as u64 + 1;
         let task = Task::new(id, title, description, due_date);
-        self.tasks.push(task.clone());
+        self.tasks.insert(task.id, task.clone());
+        self.next_id += 1;
         task
     }
 
     fn update_task(&mut self, id: u64, title: String, description: String, due_date: Option<u64>) -> Option<Task> {
-        if let Some(task) = self.tasks.iter_mut().find(|t| t.id == id) {
+        if title.is_empty() {
+            return Err(Error::ValidationError("Title cannot be empty".to_string()));
+        }
+        if description.is_empty() {
+            return Err(Error::ValidationError("Description cannot be empty".to_string()));
+        }
+        if due_date.is_empty() {
+            return Err(Error::ValidationError("Due date cannot be empty".to_string()));
+        }
+        
+        if let Some(task) = self.tasks.get_mut(&id) {
             task.title = title;
             task.description = description;
             task.due_date = due_date;
-            Some(task.clone())
+            Some(self.tasks.insert(id, task.clone()))
         } else {
             None
         }
     }
 
     fn delete_task(&mut self, id: u64) -> Option<Task> {
-        if let Some(index) = self.tasks.iter().position(|t| t.id == id) {
+        if let Some(index) = self.tasks.get_mut(&id) {
             Some(self.tasks.remove(index))
         } else {
             None
@@ -67,45 +93,53 @@ impl TaskTracker {
     }
 
     fn get_task(&self, id: u64) -> Option<Task> {
-        self.tasks.iter().find(|t| t.id == id).cloned()
+        self.tasks.get_mut(&id).cloned()
     }
 
     fn list_tasks(&self) -> Vec<Task> {
         self.tasks.clone()
     }
-}
 
-static mut TASK_TRACKER: Option<TaskTracker> = None;
-
-fn get_or_init_task_tracker() -> &'static mut TaskTracker {
-    unsafe {
-        TASK_TRACKER.get_or_insert_with(|| TaskTracker::new())
+    // Example method for updating task status
+    fn update_task_status(&mut self, id: u64, status: TaskStatus) -> Option<&Task> {
+        self.tasks.get_mut(&id).map(|task| {
+            task.status = status;
+            task
+        })
     }
 }
 
+static TASK_TRACKER: once_cell::sync::Lazy<std::sync::Mutex<TaskTracker>> =
+    once_cell::sync::Lazy::new(|| std::sync::Mutex::new(TaskTracker::new()));
+
 #[update(name = "add_task")]
 fn add_task(title: String, description: String, due_date: Option<u64>) -> Task {
-    get_or_init_task_tracker().add_task(title, description, due_date)
+    TASK_TRACKER.lock().unwrap().add_task(title, description, due_date)
 }
 
 #[update(name = "update_task")]
 fn update_task(id: u64, title: String, description: String, due_date: Option<u64>) -> Option<Task> {
-    get_or_init_task_tracker().update_task(id, title, description, due_date)
+    TASK_TRACKER.lock().unwrap().update_task(id, title, description, due_date)
 }
 
 #[update(name = "delete_task")]
 fn delete_task(id: u64) -> Option<Task> {
-    get_or_init_task_tracker().delete_task(id)
+    TASK_TRACKER.lock().unwrap().delete_task(id)
 }
 
 #[query(name = "get_task")]
 fn get_task(id: u64) -> Option<Task> {
-    get_or_init_task_tracker().get_task(id)
+    TASK_TRACKER.lock().unwrap().get_task(id)
 }
 
 #[query(name = "list_tasks")]
 fn list_tasks() -> Vec<Task> {
-    get_or_init_task_tracker().list_tasks()
+    TASK_TRACKER.lock().unwrap().list_tasks()
+}
+
+#[derive(candid::CandidType, Deserialize, Serialize)]
+enum Error {
+    ValidationError(String),
 }
 
 // need this to generate candid
