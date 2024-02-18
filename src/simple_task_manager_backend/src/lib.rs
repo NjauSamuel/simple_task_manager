@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 use ic_cdk::update;
 use ic_cdk::query;
 
+// Define Task and TaskStatus structs
 #[derive(CandidType, Clone, Serialize, Deserialize)]
 struct Task {
     id: u64,
@@ -18,6 +19,7 @@ enum TaskStatus {
     Completed,
 }
 
+ // Define a constructor for Task struct
 impl Task {
     fn new(id: u64, title: String, description: String, due_date: Option<u64>) -> Self {
         Task {
@@ -30,23 +32,27 @@ impl Task {
     }
 }
 
+// Define TaskTracker struct
 #[derive(CandidType)]
 struct TaskTracker {
     tasks: Vec<Task>,
 }
 
 impl TaskTracker {
+    // Define a constructor for TaskTracker struct
     fn new() -> Self {
         TaskTracker { tasks: Vec::new() }
     }
 
+    // Add a new task to the TaskTracker
     fn add_task(&mut self, title: String, description: String, due_date: Option<u64>) -> Task {
         let id = self.tasks.len() as u64 + 1;
         let task = Task::new(id, title, description, due_date);
         self.tasks.push(task.clone());
         task
     }
-
+    
+    // Update an existing task in the TaskTracker
     fn update_task(&mut self, id: u64, title: String, description: String, due_date: Option<u64>) -> Option<Task> {
         if let Some(task) = self.tasks.iter_mut().find(|t| t.id == id) {
             task.title = title;
@@ -58,6 +64,8 @@ impl TaskTracker {
         }
     }
 
+    
+    // Delete a task from the TaskTracker
     fn delete_task(&mut self, id: u64) -> Option<Task> {
         if let Some(index) = self.tasks.iter().position(|t| t.id == id) {
             Some(self.tasks.remove(index))
@@ -66,11 +74,11 @@ impl TaskTracker {
         }
     }
 
-    fn get_task(&self, id: u64) -> Option<Task> {
+    fn get_task(&self, id: u64) -> Option<Task> {    // Change return type to Option<&Task>
         self.tasks.iter().find(|t| t.id == id).cloned()
     }
 
-    fn list_tasks(&self) -> Vec<Task> {
+    fn list_tasks(&self) -> Vec<Task> { // Change return type to &[Task]
         self.tasks.clone()
     }
 }
